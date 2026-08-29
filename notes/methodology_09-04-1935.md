@@ -137,3 +137,44 @@ with it.
   new day will need its own pass through the raw Details text and its own
   reported-time anchors; it is not a mechanical extraction from the existing
   spreadsheet columns.
+
+## Geocoding correction -- CORRECTED (2026-08-29)
+
+David reported (after deploying the app to Streamlit Cloud) that all of
+Hemingway's waypoints appeared to plot in open water rather than on land.
+
+Root cause: `scripts/generate_09_04_data.py` placed every interpolated point
+along a single straight line between just two confirmed reference points 61
+miles apart (No Name Key, MM30, and Tavernier, MM91.5). The real Overseas
+Highway corridor curves noticeably between those two points, so a straight
+line cuts across Florida Bay rather than following the keys -- every
+interpolated point came out 2-5 miles north of the real island it was meant
+to represent, worst in the middle of the range (Craig Key, Lower Matecumbe)
+and smallest near the two original anchors.
+
+Fixed by looking up four more confirmed modern reference points along the
+corridor and interpolating piecewise between whichever two anchors bracket
+each mile marker, instead of one line end to end:
+
+- Craig Key (MM72): 24.8383, -80.7595 (latitude.to)
+- Lower Matecumbe Key centroid (MM75.5): 24.8635, -80.7160 (latitude.to)
+- Upper Matecumbe Key centroid (MM81.5): 24.9180, -80.6351 (latitude.to)
+- Snake Creek Hwy 1 bridge (MM86): 24.9517, -80.5883 (tidespro)
+
+Four gazetteer rows that happen to sit exactly on these new anchors --
+Craig Key, Lower Matecumbe (interior), Upper Matecumbe (Matecumbe Hotel /
+King's Inn), and Snake Creek -- were upgraded from `approximate-interpolated`
+to `confirmed` accordingly. The remaining interpolated rows (the ferry
+slip/Camp 3 end, Camp 5, the Fill, Caribbee Colony, Islamorada, Whale
+Harbor, Windley Key/Camp 1) are still interpolated, just now within a much
+shorter bracket (a few miles instead of 61), so they should track the real
+coastline far more closely -- but they are still estimates, not surveyed
+points, and still carry `approximate-interpolated` / `approximate-historical`
+confidence tags accordingly. Per the open item already in this file: a local
+historian's sanity check on these before anything with a precise dot on a
+map goes into a published article is still the right bar, this correction
+narrows the error, it doesn't eliminate the need for that check.
+
+`scripts/generate_09_04_data.py` was edited (both in this folder and in the
+deployed `deploy/` copy) and re-run to regenerate the two derived CSVs; the
+original master spreadsheet and its working copy were untouched throughout.

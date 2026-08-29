@@ -1,3 +1,4 @@
+import math
 import os
 
 import pandas as pd
@@ -234,11 +235,42 @@ with col_map:
         ))
 
     if layers:
-        all_lats = pd.concat([mov["lat"]])
-        all_lons = pd.concat([mov["lon"]])
+        # Fit the camera to whoever is currently on screen: each selected
+        # person's current position plus their very next stop. Fixes two
+        # problems with the old fixed mean-centered zoom=10.2 view: (a) Key
+        # West, at the far southwest end of the whole corridor, was getting
+        # cut out of frame whenever it was the current or a recent position,
+        # so it looked like the event "didn't show up on the map"; and (b)
+        # the destination of the next "Next event" click wasn't visible yet,
+        # so arriving there looked like an unexplained jump. Falls back to
+        # the full route extent if nothing is selected.
+        relevant_lats, relevant_lons = [], []
+        for _person, _st in states.items():
+            relevant_lats.append(float(_st["lat"]))
+            relevant_lons.append(float(_st["lon"]))
+            if _st["nxt"] is not None:
+                relevant_lats.append(float(_st["nxt"]["lat"]))
+                relevant_lons.append(float(_st["nxt"]["lon"]))
+        if not relevant_lats:
+            relevant_lats = mov["lat"].tolist()
+            relevant_lons = mov["lon"].tolist()
+
+        lat_min, lat_max = min(relevant_lats), max(relevant_lats)
+        lon_min, lon_max = min(relevant_lons), max(relevant_lons)
+        center_lat = (lat_min + lat_max) / 2
+        center_lon = (lon_min + lon_max) / 2
+        lat_span = max(lat_max - lat_min, 0.01)
+        lon_span = max((lon_max - lon_min) * math.cos(math.radians(center_lat)), 0.01)
+        # 1.6x padding so points aren't jammed against the edge of the view;
+        # the 0.22 reference span is calibrated to roughly match the old
+        # zoom=10.2 for the tight Middle Keys cluster.
+        span = max(lat_span, lon_span) * 1.6
+        zoom = 10.2 - math.log2(span / 0.22)
+        zoom = max(7.0, min(zoom, 12.5))
+
         view_state = pdk.ViewState(
-            latitude=float(all_lats.mean()), longitude=float(all_lons.mean()),
-            zoom=10.2, pitch=0,
+            latitude=center_lat, longitude=center_lon,
+            zoom=zoom, pitch=0,
         )
         tooltip = {"html": "<b>{person}</b><br/>{location}<br/>{status}",
                    "style": {"backgroundColor": "white", "color": "black"}}

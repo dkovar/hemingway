@@ -11,9 +11,17 @@ precise time or a precise coordinate, that is marked explicitly rather than
 guessed silently.
 
 Coordinates for the Overseas Highway corridor (Lower Matecumbe through Snake
-Creek) are not independently surveyed -- they are linearly interpolated along
-US-1 mile markers between three confirmed reference points (Key West MM0,
-No Name Key MM30, Tavernier MM91.5). See notes/methodology_09-04-1935.md.
+Creek) are not independently surveyed. As of the original build they were
+linearly interpolated along US-1 mile markers between just two confirmed
+reference points 61 miles apart (No Name Key MM30, Tavernier MM91.5) -- a
+single straight line across a corridor that actually curves, which put every
+interpolated point 2-5 miles north of the real islands (confirmed 2026-08-29
+after a user report that Hemingway's waypoints were plotting in open water).
+Fixed by adding four more confirmed modern reference points along the way
+(Craig Key MM72, Lower Matecumbe Key MM75.5, Upper Matecumbe Key MM81.5,
+Snake Creek Bridge MM86) and interpolating piecewise between whichever two
+anchors bracket each mile marker, instead of one line end to end. See
+notes/methodology_09-04-1935.md.
 
 TIME MODEL (added for the time-slider view)
 ---------------------------------------------
@@ -49,25 +57,38 @@ OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 # ---------------------------------------------------------------------------
 # Reference points confirmed via web search against modern sources
 # ---------------------------------------------------------------------------
-KEY_WEST = (0.0, 24.5551, -81.7800)      # confirmed modern coordinate
-NO_NAME_KEY = (30.0, 24.6926, -81.3260)  # confirmed modern coordinate (latitude.to)
-TAVERNIER = (91.5, 25.0092, -80.5082)    # confirmed modern coordinate (latitude.to)
+KEY_WEST = (0.0, 24.5551, -81.7800)        # confirmed modern coordinate
+NO_NAME_KEY = (30.0, 24.6926, -81.3260)    # confirmed modern coordinate (latitude.to)
+CRAIG_KEY = (72.0, 24.8383, -80.7595)      # confirmed modern coordinate (latitude.to)
+LOWER_MATECUMBE = (75.5, 24.8635, -80.7160)  # confirmed modern coordinate (latitude.to), Lower Matecumbe Key centroid
+UPPER_MATECUMBE = (81.5, 24.9180, -80.6351)  # confirmed modern coordinate (latitude.to), Upper Matecumbe Key centroid
+SNAKE_CREEK_BRIDGE = (86.0, 24.9517, -80.5883)  # confirmed modern coordinate (tidespro), Snake Creek Hwy 1 bridge
+TAVERNIER = (91.5, 25.0092, -80.5082)      # confirmed modern coordinate (latitude.to)
 
-_mm0, _lat0, _lon0 = NO_NAME_KEY
-_mm1, _lat1, _lon1 = TAVERNIER
-LAT_PER_MI = (_lat1 - _lat0) / (_mm1 - _mm0)
-LON_PER_MI = (_lon1 - _lon0) / (_mm1 - _mm0)
+# Anchors sorted by mile marker. interp_coord() finds whichever consecutive
+# pair brackets a given mile marker and interpolates only within that short
+# segment, rather than across the whole 61-mile corridor at once -- this is
+# what fixes the "everything is 2-5 miles north, in the water" bug: a single
+# No-Name-Key-to-Tavernier line doesn't follow the real curve of the Keys.
+_ANCHORS = sorted([KEY_WEST, NO_NAME_KEY, CRAIG_KEY, LOWER_MATECUMBE,
+                    UPPER_MATECUMBE, SNAKE_CREEK_BRIDGE, TAVERNIER])
 
 
 def interp_coord(mile_marker):
-    lat = _lat0 + (mile_marker - _mm0) * LAT_PER_MI
-    lon = _lon0 + (mile_marker - _mm0) * LON_PER_MI
-    return round(lat, 4), round(lon, 4)
+    for (mm0, lat0, lon0), (mm1, lat1, lon1) in zip(_ANCHORS, _ANCHORS[1:]):
+        if mm0 <= mile_marker <= mm1:
+            frac = 0.0 if mm1 == mm0 else (mile_marker - mm0) / (mm1 - mm0)
+            return round(lat0 + (lat1 - lat0) * frac, 4), round(lon0 + (lon1 - lon0) * frac, 4)
+    raise ValueError(f"mile marker {mile_marker} is outside the anchored range")
 
 
 CONFIRMED_COORDS = {
     "Key West": (KEY_WEST[1], KEY_WEST[2]),
     "No Name Key": (NO_NAME_KEY[1], NO_NAME_KEY[2]),
+    "Craig Key": (CRAIG_KEY[1], CRAIG_KEY[2]),
+    "Lower Matecumbe (interior)": (LOWER_MATECUMBE[1], LOWER_MATECUMBE[2]),
+    "Upper Matecumbe (Matecumbe Hotel / King's Inn)": (UPPER_MATECUMBE[1], UPPER_MATECUMBE[2]),
+    "Snake Creek": (SNAKE_CREEK_BRIDGE[1], SNAKE_CREEK_BRIDGE[2]),
     "Tavernier": (TAVERNIER[1], TAVERNIER[2]),
 }
 
@@ -84,7 +105,7 @@ GAZETTEER = [
     ("No Name Key", "No Name Key", 30.0, "confirmed", "known modern coordinate",
      "KWC (Doc 9) reports a highway route Key West -> No Name Key 9/4; also the "
      "ambiguous overnight location in Hemingway's letter to Perkins (Doc 1)."),
-    ("Craig Key", "Craig Key", 72.0, "approximate-interpolated", "mile-marker interpolation",
+    ("Craig Key", "Craig Key", 72.0, "confirmed", "known modern coordinate (latitude.to)",
      "Not named directly in the 9/4 rows; included for the map's highway line only."),
     ("Lower Matecumbe (Ferry Slip / Camp 3 end)", "Lower Matecumbe, Ferry Slip, Camp 3",
      73.0, "approximate-historical",
@@ -93,8 +114,8 @@ GAZETTEER = [
      "(Keys Weekly: 'Camp 3 was located at the west (south) end of the island, "
      "which aligns with the ferry landing area'). This is where Hemingway's "
      "boat lands and where he re-boards to reach Camp 5."),
-    ("Lower Matecumbe (interior)", "Lower Matecumbe", 75.5, "approximate-interpolated",
-     "mile-marker interpolation",
+    ("Lower Matecumbe (interior)", "Lower Matecumbe", 75.5, "confirmed",
+     "known modern coordinate (latitude.to), Lower Matecumbe Key centroid",
      "General midpoint of the key, used for Hemingway's on-foot passage past "
      "the railroad embankment and mangroves; exact spot not recoverable."),
     ("Camp 5", "Camp 5", 78.0, "approximate-historical",
@@ -113,7 +134,7 @@ GAZETTEER = [
      "Small settlement near the south end of Upper Matecumbe; swept clean per "
      "Cavendish (Doc 76)."),
     ("Upper Matecumbe (Matecumbe Hotel / King's Inn)", "Upper Matecumbe",
-     81.5, "approximate-interpolated", "mile-marker interpolation",
+     81.5, "confirmed", "known modern coordinate (latitude.to), Upper Matecumbe Key centroid",
      "Cavendish passes the ruined Matecumbe Hotel and O.W. King's Inn & "
      "Sandwich Shop here (Doc 76)."),
     ("Islamorada (post office / train wreck)", "Islamorada, Islamorada (PO; Train)",
@@ -128,8 +149,8 @@ GAZETTEER = [
      "mile-marker interpolation + secondary-source siting",
      "Camp 1 sited 'just across Snake Creek from Plantation Key' per Keys "
      "Weekly, i.e. the Snake Creek end of Windley Key."),
-    ("Snake Creek", "Snake Creek", 86.0, "approximate-interpolated",
-     "mile-marker interpolation (Wikipedia: Snake Creek Bridge, MM86)",
+    ("Snake Creek", "Snake Creek", 86.0, "confirmed",
+     "known modern coordinate (tidespro), Snake Creek Hwy 1 bridge",
      "Crossing between Plantation Key and Windley Key; Cavendish crosses here "
      "by small boat against strong current (Doc 76)."),
     ("Tavernier", "Tavernier", 91.5, "confirmed", "known modern coordinate",
