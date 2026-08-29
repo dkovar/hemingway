@@ -90,8 +90,8 @@ people = st.multiselect("Show route for", ["Hemingway", "Cavendish"], default=["
 # ---------------------------------------------------------------------------
 # Time slider
 # ---------------------------------------------------------------------------
-t_min = int(mov["est_minutes"].min() // 10 * 10)
-t_max = int(-(-mov["est_minutes"].max() // 10) * 10)  # round up to next 10
+t_min = float(mov["est_minutes"].min() // 10 * 10)
+t_max = float(-(-mov["est_minutes"].max() // 10) * 10)  # round up to next 10
 
 if "slider_minutes" not in st.session_state:
     st.session_state.slider_minutes = t_min
@@ -118,11 +118,11 @@ def _jump(direction):
     if direction == "next":
         later = [t for t in times if t > cur]
         if later:
-            st.session_state.slider_minutes = int(later[0])
+            st.session_state.slider_minutes = float(later[0])
     else:
         earlier = [t for t in times if t < cur]
         if earlier:
-            st.session_state.slider_minutes = int(earlier[-1])
+            st.session_state.slider_minutes = float(earlier[-1])
 
 
 _times = _event_times()
@@ -146,7 +146,7 @@ with col_next:
 with col_slider:
     st.slider(
         "Time of day, September 4, 1935 (minutes shown; clock time rendered below)",
-        min_value=t_min, max_value=t_max, step=5,
+        min_value=t_min, max_value=t_max, step=5.0,
         key="slider_minutes",
     )
 
