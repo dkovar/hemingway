@@ -261,12 +261,14 @@ with col_map:
         center_lon = (lon_min + lon_max) / 2
         lat_span = max(lat_max - lat_min, 0.01)
         lon_span = max((lon_max - lon_min) * math.cos(math.radians(center_lat)), 0.01)
-        # 1.6x padding so points aren't jammed against the edge of the view;
-        # the 0.22 reference span is calibrated to roughly match the old
-        # zoom=10.2 for the tight Middle Keys cluster.
-        span = max(lat_span, lon_span) * 1.6
+        # 2.2x padding (generous, to allow for the viewport not being a
+        # perfect square and for imprecision in this rough zoom-to-degree
+        # estimate) so points aren't jammed against, or clipped past, the
+        # edge of the view. The 0.22 reference span is calibrated to roughly
+        # match the old fixed zoom=10.2 for the tight Middle Keys cluster.
+        span = max(lat_span, lon_span) * 2.2
         zoom = 10.2 - math.log2(span / 0.22)
-        zoom = max(7.0, min(zoom, 12.5))
+        zoom = max(7.0, min(zoom, 11.5))
 
         view_state = pdk.ViewState(
             latitude=center_lat, longitude=center_lon,
@@ -274,8 +276,18 @@ with col_map:
         )
         tooltip = {"html": "<b>{person}</b><br/>{location}<br/>{status}",
                    "style": {"backgroundColor": "white", "color": "black"}}
+        # key forces Streamlit to remount the map (not just pass new props to
+        # the existing one) whenever the camera target changes. pydeck/deck.gl
+        # only actually applies initial_view_state when a chart is (re)mounted
+        # -- without a changing key, an already-mounted chart keeps whatever
+        # camera position it last had client-side and ignores updates to
+        # initial_view_state, which is what made the camera stop tracking
+        # Prev/Next clicks (it would hold the very first position, or
+        # whatever a user last panned/zoomed to, regardless of what the
+        # Python code computed afterward).
+        map_key = f"route_map_{round(center_lat, 4)}_{round(center_lon, 4)}_{round(zoom, 2)}"
         st.pydeck_chart(pdk.Deck(layers=layers, initial_view_state=view_state,
-                                  tooltip=tooltip, map_style=None))
+                                  tooltip=tooltip, map_style=None), key=map_key)
     else:
         st.info("Select at least one person to plot.")
 

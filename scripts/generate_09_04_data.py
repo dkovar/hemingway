@@ -60,7 +60,7 @@ OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 KEY_WEST = (0.0, 24.5551, -81.7800)        # confirmed modern coordinate
 NO_NAME_KEY = (30.0, 24.6926, -81.3260)    # confirmed modern coordinate (latitude.to)
 CRAIG_KEY = (72.0, 24.8383, -80.7595)      # confirmed modern coordinate (latitude.to)
-LOWER_MATECUMBE = (75.5, 24.8635, -80.7160)  # confirmed modern coordinate (latitude.to), Lower Matecumbe Key centroid
+ANNES_BEACH = (73.0, 24.863543, -80.716038)  # confirmed modern coordinate (Wikipedia infobox), MM73 on US-1 -- a real, precisely surveyed point, not an island centroid
 UPPER_MATECUMBE = (81.5, 24.9180, -80.6351)  # confirmed modern coordinate (latitude.to), Upper Matecumbe Key centroid
 SNAKE_CREEK_BRIDGE = (86.0, 24.9517, -80.5883)  # confirmed modern coordinate (tidespro), Snake Creek Hwy 1 bridge
 TAVERNIER = (91.5, 25.0092, -80.5082)      # confirmed modern coordinate (latitude.to)
@@ -70,7 +70,16 @@ TAVERNIER = (91.5, 25.0092, -80.5082)      # confirmed modern coordinate (latitu
 # segment, rather than across the whole 61-mile corridor at once -- this is
 # what fixes the "everything is 2-5 miles north, in the water" bug: a single
 # No-Name-Key-to-Tavernier line doesn't follow the real curve of the Keys.
-_ANCHORS = sorted([KEY_WEST, NO_NAME_KEY, CRAIG_KEY, LOWER_MATECUMBE,
+#
+# ANNES_BEACH replaced an earlier "Lower Matecumbe Key centroid" anchor that
+# had been assigned to MM75.5: that centroid figure (from a general-purpose
+# geocoder) turned out to sit almost exactly on top of Anne's Beach's real,
+# Wikipedia-sourced MM73 coordinate -- i.e. the same real point had been
+# mislabeled with the wrong mile marker, which threw off every interpolated
+# point between Craig Key and Upper Matecumbe (the bracket covering nearly
+# all of Hemingway's Lower Matecumbe stops). Anchoring it correctly at its
+# real MM73 fixes that whole bracket.
+_ANCHORS = sorted([KEY_WEST, NO_NAME_KEY, CRAIG_KEY, ANNES_BEACH,
                     UPPER_MATECUMBE, SNAKE_CREEK_BRIDGE, TAVERNIER])
 
 
@@ -86,7 +95,7 @@ CONFIRMED_COORDS = {
     "Key West": (KEY_WEST[1], KEY_WEST[2]),
     "No Name Key": (NO_NAME_KEY[1], NO_NAME_KEY[2]),
     "Craig Key": (CRAIG_KEY[1], CRAIG_KEY[2]),
-    "Lower Matecumbe (interior)": (LOWER_MATECUMBE[1], LOWER_MATECUMBE[2]),
+    "Lower Matecumbe (Ferry Slip / Camp 3 end)": (round(ANNES_BEACH[1], 4), round(ANNES_BEACH[2], 4)),
     "Upper Matecumbe (Matecumbe Hotel / King's Inn)": (UPPER_MATECUMBE[1], UPPER_MATECUMBE[2]),
     "Snake Creek": (SNAKE_CREEK_BRIDGE[1], SNAKE_CREEK_BRIDGE[2]),
     "Tavernier": (TAVERNIER[1], TAVERNIER[2]),
@@ -108,14 +117,17 @@ GAZETTEER = [
     ("Craig Key", "Craig Key", 72.0, "confirmed", "known modern coordinate (latitude.to)",
      "Not named directly in the 9/4 rows; included for the map's highway line only."),
     ("Lower Matecumbe (Ferry Slip / Camp 3 end)", "Lower Matecumbe, Ferry Slip, Camp 3",
-     73.0, "approximate-historical",
-     "mile-marker interpolation + secondary-source siting",
+     73.0, "confirmed",
+     "known modern coordinate (Wikipedia: Anne's Beach, MM73) + secondary-source siting",
      "Ferry slip and Camp 3 both sited at the west/south end of Lower Matecumbe "
      "(Keys Weekly: 'Camp 3 was located at the west (south) end of the island, "
      "which aligns with the ferry landing area'). This is where Hemingway's "
-     "boat lands and where he re-boards to reach Camp 5."),
-    ("Lower Matecumbe (interior)", "Lower Matecumbe", 75.5, "confirmed",
-     "known modern coordinate (latitude.to), Lower Matecumbe Key centroid",
+     "boat lands and where he re-boards to reach Camp 5. Coordinate reuses "
+     "Anne's Beach's Wikipedia-sourced position, the nearest real surveyed "
+     "point at the same mile marker (MM73) -- not a claim the ferry slip and "
+     "the beach are the same spot, just the closest verifiable anchor."),
+    ("Lower Matecumbe (interior)", "Lower Matecumbe", 75.5, "approximate-interpolated",
+     "mile-marker interpolation (Anne's Beach MM73 -> Upper Matecumbe MM81.5)",
      "General midpoint of the key, used for Hemingway's on-foot passage past "
      "the railroad embankment and mangroves; exact spot not recoverable."),
     ("Camp 5", "Camp 5", 78.0, "approximate-historical",

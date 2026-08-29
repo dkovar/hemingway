@@ -178,3 +178,23 @@ narrows the error, it doesn't eliminate the need for that check.
 `scripts/generate_09_04_data.py` was edited (both in this folder and in the
 deployed `deploy/` copy) and re-run to regenerate the two derived CSVs; the
 original master spreadsheet and its working copy were untouched throughout.
+
+### Addendum (same day): Anne's Beach re-anchor
+
+David then reported that Hemingway's Lower Matecumbe arrival was *still*
+landing in the water even after the piecewise fix above -- correctly so.
+The "Lower Matecumbe Key centroid" anchor used above (from a general-purpose
+geocoder, assigned to MM75.5) turned out to sit almost exactly on top of
+Anne's Beach's real, Wikipedia-sourced coordinate -- but Anne's Beach is
+actually at MM73, not MM75.5. That two-mile-marker mislabeling threw off
+every interpolated point in the Craig Key-to-Upper-Matecumbe bracket, which
+covers nearly all of Hemingway's Lower Matecumbe stops (the ferry slip,
+the interior crossing, Camp 5, the Fill).
+
+Re-anchored using Anne's Beach's real coordinate (24.863543, -80.716038) at
+its correct MM73, and re-interpolated everything in that bracket from there.
+The ferry slip/Camp 3 end sits at the same mile marker as Anne's Beach, so it
+now reuses that coordinate directly (upgraded to `confirmed`) rather than
+being interpolated; the interior crossing, Camp 5, and the Fill are
+interpolated between this corrected MM73 anchor and the MM81.5 Upper
+Matecumbe anchor, same as before.
