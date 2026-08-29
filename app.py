@@ -79,7 +79,10 @@ with st.expander("How to read this map and slider -- please read before drawing 
         "- Both routes converge at **The Fill**, the washed-out highway crossing "
         "between Lower and Upper Matecumbe -- Hemingway reaching it from the "
         "south, Cavendish from the north, on the same afternoon (but not at the "
-        "same time -- see the note below the slider)."
+        "same time -- see the note below the slider).\n"
+        "- Use **Prev event / Next event** to jump straight to the previous or next "
+        "reported/estimated stop for whichever person(s) you have selected above, "
+        "instead of dragging by hand."
     )
 
 people = st.multiselect("Show route for", ["Hemingway", "Cavendish"], default=["Hemingway", "Cavendish"])
@@ -90,11 +93,67 @@ people = st.multiselect("Show route for", ["Hemingway", "Cavendish"], default=["
 t_min = int(mov["est_minutes"].min() // 10 * 10)
 t_max = int(-(-mov["est_minutes"].max() // 10) * 10)  # round up to next 10
 
-slider_minutes = st.slider(
-    "Time of day, September 4, 1935 (minutes shown; clock time rendered below)",
-    min_value=t_min, max_value=t_max, value=t_min, step=5,
-)
+if "slider_minutes" not in st.session_state:
+    st.session_state.slider_minutes = t_min
+
+
+def _event_times():
+    """Sorted, de-duplicated waypoint times for whichever people are shown."""
+    sub = mov[mov["person"].isin(people)] if people else mov
+    return sorted(sub["est_minutes"].unique().tolist())
+
+
+def _event_label(t):
+    """Who/what happens at waypoint time t, for button tooltips and captions."""
+    hits = mov[mov["est_minutes"] == t]
+    if hits.empty:
+        return minutes_to_clock(t)
+    bits = [f"{r['person']} at {r['location_canonical']}" for _, r in hits.iterrows()]
+    return f"{minutes_to_clock(t)} -- " + "; ".join(bits)
+
+
+def _jump(direction):
+    times = _event_times()
+    cur = st.session_state.slider_minutes
+    if direction == "next":
+        later = [t for t in times if t > cur]
+        if later:
+            st.session_state.slider_minutes = int(later[0])
+    else:
+        earlier = [t for t in times if t < cur]
+        if earlier:
+            st.session_state.slider_minutes = int(earlier[-1])
+
+
+_times = _event_times()
+_cur = st.session_state.slider_minutes
+_earlier = [t for t in _times if t < _cur]
+_later = [t for t in _times if t > _cur]
+
+col_prev, col_slider, col_next = st.columns([1.1, 5, 1.1])
+with col_prev:
+    st.button(
+        "\u25c0 Prev event", use_container_width=True, disabled=not _earlier,
+        on_click=_jump, args=("prev",),
+        help=_event_label(_earlier[-1]) if _earlier else "No earlier event",
+    )
+with col_next:
+    st.button(
+        "Next event \u25b6", use_container_width=True, disabled=not _later,
+        on_click=_jump, args=("next",),
+        help=_event_label(_later[0]) if _later else "No later event",
+    )
+with col_slider:
+    st.slider(
+        "Time of day, September 4, 1935 (minutes shown; clock time rendered below)",
+        min_value=t_min, max_value=t_max, step=5,
+        key="slider_minutes",
+    )
+
+slider_minutes = st.session_state.slider_minutes
 st.markdown(f"### {minutes_to_clock(slider_minutes)}")
+if _later:
+    st.caption(f"Next: {_event_label(_later[0])}")
 
 
 def person_state(df_person, t):
