@@ -1,5 +1,6 @@
 import math
 import os
+import time
 
 import pandas as pd
 import pydeck as pdk
@@ -126,12 +127,24 @@ def _jump(direction):
             st.session_state.slider_minutes = float(earlier[-1])
 
 
+if "animating" not in st.session_state:
+    st.session_state.animating = False
+
+
+def _start_animation():
+    st.session_state.animating = True
+
+
+def _stop_animation():
+    st.session_state.animating = False
+
+
 _times = _event_times()
 _cur = st.session_state.slider_minutes
 _earlier = [t for t in _times if t < _cur]
 _later = [t for t in _times if t > _cur]
 
-col_prev, col_slider, col_next = st.columns([1.1, 5, 1.1])
+col_prev, col_slider, col_next, col_anim = st.columns([1.1, 4.3, 1.1, 1.3])
 with col_prev:
     st.button(
         "\u25c0 Prev event", use_container_width=True, disabled=not _earlier,
@@ -144,6 +157,15 @@ with col_next:
         on_click=_jump, args=("next",),
         help=_event_label(_later[0]) if _later else "No later event",
     )
+with col_anim:
+    if st.session_state.animating:
+        st.button("Stop \u25a0", use_container_width=True, on_click=_stop_animation)
+    else:
+        st.button(
+            "Animate \u25b6\u25b6", use_container_width=True,
+            on_click=_start_animation, disabled=not _later,
+            help="Step through every remaining event automatically, ~1 per second.",
+        )
 with col_slider:
     st.slider(
         "Time of day, September 4, 1935 (minutes shown; clock time rendered below)",
@@ -194,7 +216,7 @@ for person in people:
     if len(sub):
         states[person] = person_state(sub, slider_minutes)
 
-col_map, col_text = st.columns([2, 1])
+col_map, col_text, col_note = st.columns([2, 1, 1])
 
 with col_map:
     layers = []
@@ -287,7 +309,8 @@ with col_map:
         # Python code computed afterward).
         map_key = f"route_map_{round(center_lat, 4)}_{round(center_lon, 4)}_{round(zoom, 2)}"
         st.pydeck_chart(pdk.Deck(layers=layers, initial_view_state=view_state,
-                                  tooltip=tooltip, map_style=None), key=map_key)
+                                  tooltip=tooltip, map_style=None),
+                         key=map_key, height=430)
     else:
         st.info("Select at least one person to plot.")
 
@@ -309,23 +332,20 @@ with col_text:
             st.markdown(
                 f"At **{cur['location_canonical']}** (reached ~{cur['est_time_display']}, {conf_note})"
             )
-        st.markdown(f"> {cur['action']}")
-        st.markdown(f"> {cur['quote']}")
+        st.markdown(f"> {cur['action']} \"{cur['quote'].strip(chr(34))}\"")
         if st_["nxt"] is not None and st_["frac"] > 0:
             st.caption(f"Heading toward {st_['nxt']['location_canonical']} "
                        f"(~{st_['nxt']['est_time_display']}, {CONF_LABEL.get(st_['nxt']['time_confidence'], '')})")
-        st.markdown("---")
 
-st.info(
-    "**Hemingway was not there yet.** At 3:00 PM, when Cavendish reached the "
-    "Fill from the north and looked across at where Camp 5 had stood, "
-    "Hemingway's party had not yet arrived -- the time model above puts "
-    "Hemingway at the Fill no earlier than roughly 6:00 PM (extrapolated, not "
-    "reported). The two accounts describe the same washed-out crossing from "
-    "opposite sides hours apart, not a missed sighting of each other. See "
-    "`notes/methodology_09-04-1935.md` for the full reasoning and the caveat "
-    "that Hemingway's exact arrival time is still an estimate, not a fact."
-)
+with col_note:
+    st.info(
+        "**Hemingway was not there yet.** When Cavendish reached the Fill at "
+        "3:00 PM and looked toward Camp 5, Hemingway's party hadn't arrived "
+        "-- the time model puts him there no earlier than ~6:00 PM "
+        "(extrapolated). Same crossing, opposite sides, hours apart -- not a "
+        "missed sighting. Full reasoning: "
+        "`notes/methodology_09-04-1935.md`."
+    )
 
 st.divider()
 with st.expander("Full itinerary (reference)"):
@@ -361,3 +381,19 @@ with tab2:
     )
     st.markdown("Raw movement table:")
     st.dataframe(mov.drop(columns=["canonical_name"]), use_container_width=True, hide_index=True)
+
+
+# ---------------------------------------------------------------------------
+# Animate: advance one event per rerun while st.session_state.animating is
+# True, pausing briefly so each frame is actually visible (useful for screen
+# recording). Placed at the very end of the script so this frame finishes
+# rendering -- map, text, and the near-miss note -- before the sleep/rerun
+# advances to the next one. Stops itself once there is no later event left.
+# ---------------------------------------------------------------------------
+if st.session_state.animating:
+    if _later:
+        time.sleep(1.1)
+        st.session_state.slider_minutes = float(_later[0])
+        st.rerun()
+    else:
+        st.session_state.animating = False
